@@ -1,0 +1,44 @@
+services:
+    overleaf:
+        image: "docker.io/sharelatex/sharelatex:5.5.4"
+        restart: "unless-stopped"
+        volumes:
+            - "./data/overleaf-data/:/var/lib/overleaf/data/"
+            - "./data/overleaf-tmp/:/var/lib/overleaf/tmp/"
+            - "./data/overleaf-log/:/var/log/overleaf/"
+            - "./podman.sock:/var/run/docker.sock"
+        ports:
+            - "127.0.0.1:80:80"
+        env_file:
+            - "./config/overleaf.env"
+        depends_on:
+            mongo:
+                condition: "service_started"
+            redis:
+                condition: "service_started"
+    mongo:
+        image: "docker.io/library/mongo:8.0"
+        restart: "unless-stopped"
+        command: "--replSet overleaf"
+        volumes:
+            - "./data/mongo:/data/db"
+        expose:
+            - 27017
+        healthcheck:
+            test: ["CMD-SHELL", "mongosh --quiet --eval='db.stats().ok' | grep -q 1"]
+            interval: "1s"
+            timeout: "3s"
+            retries: 5
+    redis:
+        image: "docker.io/library/redis:8.2"
+        restart: "unless-stopped"
+        volumes:
+            - "./data/redis:/data"
+        expose:
+            - 6379
+        healthcheck:
+            test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+            interval: "1s"
+            timeout: "3s"
+            retries: 5
+
